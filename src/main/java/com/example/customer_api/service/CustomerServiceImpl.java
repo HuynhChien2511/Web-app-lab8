@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.customer_api.dto.CustomerRequestDTO;
 import com.example.customer_api.dto.CustomerResponseDTO;
+import com.example.customer_api.dto.CustomerUpdateDTO;
 import com.example.customer_api.entity.Customer;
 import com.example.customer_api.exception.DuplicateResourceException;
 import com.example.customer_api.exception.ResourceNotFoundException;
@@ -83,6 +84,34 @@ public class CustomerServiceImpl implements CustomerService {
     }
     
     @Override
+    public CustomerResponseDTO partialUpdateCustomer(Long id, CustomerUpdateDTO updateDTO) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + id));
+        
+        // Only update non-null fields
+        if (updateDTO.getFullName() != null) {
+            customer.setFullName(updateDTO.getFullName());
+        }
+        if (updateDTO.getEmail() != null) {
+            // Check for duplicate email
+            if (!customer.getEmail().equals(updateDTO.getEmail()) 
+                && customerRepository.existsByEmail(updateDTO.getEmail())) {
+                throw new DuplicateResourceException("Email already exists: " + updateDTO.getEmail());
+            }
+            customer.setEmail(updateDTO.getEmail());
+        }
+        if (updateDTO.getPhone() != null) {
+            customer.setPhone(updateDTO.getPhone());
+        }
+        if (updateDTO.getAddress() != null) {
+            customer.setAddress(updateDTO.getAddress());
+        }
+        
+        Customer updatedCustomer = customerRepository.save(customer);
+        return convertToResponseDTO(updatedCustomer);
+    }
+    
+    @Override
     public void deleteCustomer(Long id) {
         if (!customerRepository.existsById(id)) {
             throw new ResourceNotFoundException("Customer not found with id: " + id);
@@ -104,6 +133,36 @@ public class CustomerServiceImpl implements CustomerService {
                 .stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<CustomerResponseDTO> advancedSearch(String name, String email, String status) {
+        return customerRepository.advancedSearch(name, email, status)
+                .stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public org.springframework.data.domain.Page<CustomerResponseDTO> getAllCustomers(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return customerRepository.findAll(pageable)
+                .map(this::convertToResponseDTO);
+    }
+    
+    @Override
+    public List<CustomerResponseDTO> getAllCustomers(org.springframework.data.domain.Sort sort) {
+        return customerRepository.findAll(sort)
+                .stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public org.springframework.data.domain.Page<CustomerResponseDTO> getAllCustomers(int page, int size, org.springframework.data.domain.Sort sort) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, sort);
+        return customerRepository.findAll(pageable)
+                .map(this::convertToResponseDTO);
     }
     
     // Helper Methods for DTO Conversion

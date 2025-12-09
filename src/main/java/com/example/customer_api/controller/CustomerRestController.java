@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.customer_api.dto.CustomerRequestDTO;
 import com.example.customer_api.dto.CustomerResponseDTO;
+import com.example.customer_api.dto.CustomerUpdateDTO;
 import com.example.customer_api.service.CustomerService;
 
 import jakarta.validation.Valid;
@@ -64,6 +66,15 @@ public class CustomerRestController {
         return ResponseEntity.ok(updatedCustomer);
     }
     
+    // PATCH partial update customer
+    @PatchMapping("/{id}")
+    public ResponseEntity<CustomerResponseDTO> partialUpdateCustomer(
+            @PathVariable Long id,
+            @Valid @RequestBody CustomerUpdateDTO updateDTO) {
+        CustomerResponseDTO updatedCustomer = customerService.partialUpdateCustomer(id, updateDTO);
+        return ResponseEntity.ok(updatedCustomer);
+    }
+    
     // DELETE customer
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteCustomer(@PathVariable Long id) {
@@ -85,5 +96,71 @@ public class CustomerRestController {
     public ResponseEntity<List<CustomerResponseDTO>> getCustomersByStatus(@PathVariable String status) {
         List<CustomerResponseDTO> customers = customerService.getCustomersByStatus(status);
         return ResponseEntity.ok(customers);
+    }
+    
+    // GET advanced search with multiple criteria
+    @GetMapping("/advanced-search")
+    public ResponseEntity<List<CustomerResponseDTO>> advancedSearch(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String status) {
+        List<CustomerResponseDTO> customers = customerService.advancedSearch(name, email, status);
+        return ResponseEntity.ok(customers);
+    }
+    
+    // GET all customers with pagination
+    @GetMapping("/paginated")
+    public ResponseEntity<Map<String, Object>> getAllCustomersPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        org.springframework.data.domain.Page<CustomerResponseDTO> customerPage = 
+                customerService.getAllCustomers(page, size);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("customers", customerPage.getContent());
+        response.put("currentPage", customerPage.getNumber());
+        response.put("totalItems", customerPage.getTotalElements());
+        response.put("totalPages", customerPage.getTotalPages());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    // GET all customers with sorting
+    @GetMapping("/sorted")
+    public ResponseEntity<List<CustomerResponseDTO>> getAllCustomersSorted(
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        org.springframework.data.domain.Sort sort = sortDir.equalsIgnoreCase("asc") 
+            ? org.springframework.data.domain.Sort.by(sortBy).ascending() 
+            : org.springframework.data.domain.Sort.by(sortBy).descending();
+        
+        List<CustomerResponseDTO> customers = customerService.getAllCustomers(sort);
+        return ResponseEntity.ok(customers);
+    }
+    
+    // GET all customers with pagination and sorting combined
+    @GetMapping("/paginated-sorted")
+    public ResponseEntity<Map<String, Object>> getAllCustomersPaginatedAndSorted(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        org.springframework.data.domain.Sort sort = sortDir.equalsIgnoreCase("asc") 
+            ? org.springframework.data.domain.Sort.by(sortBy).ascending() 
+            : org.springframework.data.domain.Sort.by(sortBy).descending();
+        
+        org.springframework.data.domain.Page<CustomerResponseDTO> customerPage = 
+                customerService.getAllCustomers(page, size, sort);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("customers", customerPage.getContent());
+        response.put("currentPage", customerPage.getNumber());
+        response.put("totalItems", customerPage.getTotalElements());
+        response.put("totalPages", customerPage.getTotalPages());
+        
+        return ResponseEntity.ok(response);
     }
 }
